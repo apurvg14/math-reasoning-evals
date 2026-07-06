@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Math Reasoning Robustness</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --border2:#39404e; --text:#e7ebf2; --muted:#9aa4b2; --accent:#5b9dff;
+    --good:#38c172; --bad:#ff5f6d; --warn:#f5a623;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{padding:22px 28px;border-bottom:1px solid var(--border)}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  main{max-width:1000px;margin:0 auto;padding:24px 28px 60px;
+       display:flex;flex-direction:column;gap:20px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+        padding:18px 20px}
+  .cardhead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .cardhead h2{margin:0;font-size:15px;font-weight:600}
+  .grow{flex:1}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:180px}
+  select,input{width:100%;background:var(--panel2);color:var(--text);
+    border:1px solid var(--border2);border-radius:8px;padding:9px 10px;font-size:14px}
+  button{background:var(--accent);color:#07101f;border:0;border-radius:8px;
+    padding:10px 18px;font-weight:600;font-size:14px;cursor:pointer}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .pill{font-size:12px;padding:3px 10px;border-radius:999px;
+    background:var(--panel2);border:1px solid var(--border2);color:var(--muted)}
+  .pill.run{color:var(--warn);border-color:var(--warn)}
+  .pill.ok{color:var(--good);border-color:var(--good)}
+  .pill.err{color:var(--bad);border-color:var(--bad)}
+  details.adv{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+  details.adv summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:none}
+  details.adv summary::-webkit-details-marker{display:none}
+  .chev{display:inline-block;transition:transform .15s;margin-right:6px}
+  details[open] .chev{transform:rotate(90deg)}
+  .advbody{margin-top:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600}
+  td.num{font-variant-numeric:tabular-nums}
+  .bar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;margin-top:4px}
+  .bar>i{display:block;height:100%;background:var(--good)}
+  .bar.bad>i{background:var(--bad)}
+  code,.mono{font-family:var(--mono)}
+  #log{background:#0a0c10;border:1px solid var(--border);border-radius:8px;
+    padding:12px;height:180px;overflow:auto;font-family:var(--mono);font-size:12px;
+    white-space:pre-wrap;color:#c7d0dd}
+  .muted{color:var(--muted)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+  .grid{display:grid;grid-template-columns:1fr;gap:2px}
+  .taskcell{display:inline-block;width:14px;height:14px;border-radius:3px;margin:1px;
+    background:var(--panel2)}
+  .taskcell.ok{background:var(--good)} .taskcell.broke{background:var(--bad)}
+  .taskcell.miss{background:#333a47}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;
+    vertical-align:-1px}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Math Reasoning Robustness</h1>
+  <p>Semantics-preserving perturbations leave the answer unchanged. A model that
+     truly reasons should be invariant. <span class="mono">robust pass@1</span> is
+     the worst case across every perturbation.</p>
+</header>
+<main>
+
+  <section class="card" data-testid="run-card">
+    <div class="cardhead">
+      <h2>Run an experiment</h2>
+      <span class="grow"></span>
+      <span id="runPill" class="pill" data-testid="run-pill">idle</span>
+    </div>
+    <div class="row">
+      <div>
+        <label for="model">Model</label>
+        <select id="model" data-testid="model-select"></select>
+      </div>
+      <div>
+        <label for="dataset">Dataset</label>
+        <select id="dataset" data-testid="dataset-select"></select>
+      </div>
+    </div>
+
+    <details class="adv" data-testid="advanced">
+      <summary data-testid="advanced-toggle"><span class="chev">&#9656;</span> Advanced settings</summary>
+      <div class="advbody">
+        <div class="row">
+          <div>
+            <label for="limit">Problem limit (blank = all)</label>
+            <input id="limit" data-testid="limit-input" type="number" min="1" placeholder="all"/>
+          </div>
+          <div>
+            <label for="fresh">Resume behavior</label>
+            <select id="fresh" data-testid="fresh-select">
+              <option value="false">Resume saved progress</option>
+              <option value="true">Start fresh (ignore checkpoint)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div style="margin-top:16px;display:flex;align-items:center;gap:14px">
+      <button id="runBtn" data-testid="run-button">Run</button>
+      <span id="runMsg" class="hint" data-testid="run-message"></span>
+    </div>
+    <div id="log" data-testid="log" style="margin-top:14px"></div>
+  </section>
+
+  <section class="card" data-testid="scorecard">
+    <div class="cardhead">
+      <h2>Scorecard</h2>
+      <span class="grow"></span>
+      <button id="refresh" data-testid="refresh-button"
+              style="background:var(--panel2);color:var(--text);border:1px solid var(--border2)">Refresh</button>
+    </div>
+    <div id="score"><div class="empty" data-testid="score-empty">No results yet. Run a model above.</div></div>
+  </section>
+
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, props={}, kids=[]) => {
+  const n = document.createElement(t);
+  for (const [k,v] of Object.entries(props)) {
+    if (k === "class") n.className = v;
+    else if (k === "testid") n.setAttribute("data-testid", v);
+    else if (k === "html") n.innerHTML = v;
+    else n[k] = v;
+  }
+  for (const c of [].concat(kids)) n.append(c);
+  return n;
+};
+
+async function loadConfig(){
+  const c = await (await fetch("/api/config")).json();
+  const ms = $("#model"); ms.innerHTML = "";
+  const gk = el("optgroup",{label:"Keyless (no API key)"});
+  c.keyless.forEach(m => gk.append(el("option",{value:m,textContent:m})));
+  ms.append(gk);
+  const gr = el("optgroup",{label:"Real models (need API key)"});
+  c.suggested.forEach(m => gr.append(el("option",{value:m,textContent:m})));
+  ms.append(gr);
+  const ds = $("#dataset"); ds.innerHTML = "";
+  c.datasets.forEach(d => ds.append(el("option",{value:d,textContent:d})));
+}
+
+function setRunning(on){
+  $("#runBtn").disabled = on;
+  const pill = $("#runPill");
+  pill.textContent = on ? "running" : "idle";
+  pill.className = "pill" + (on ? " run" : "");
+}
+
+let polling = false;
+async function poll(){
+  if (polling) return; polling = true;
+  const s = await (await fetch("/api/status")).json();
+  $("#log").textContent = (s.log||[]).join("\n");
+  $("#log").scrollTop = $("#log").scrollHeight;
+  if (s.running){
+    setTimeout(()=>{polling=false; poll();}, 700);
+    return;
+  }
+  polling = false;
+  setRunning(false);
+  const pill = $("#runPill");
+  if (s.done){
+    if (s.error){ pill.textContent = "error"; pill.className = "pill err"; }
+    else { pill.textContent = "done"; pill.className = "pill ok"; }
+  }
+  if (s.done) loadResults();
+}
+
+async function run(){
+  const model = $("#model").value, dataset = $("#dataset").value;
+  const limitRaw = $("#limit").value.trim();
+  const body = {model, dataset, fresh: $("#fresh").value === "true"};
+  if (limitRaw) body.limit = parseInt(limitRaw, 10);
+  $("#runMsg").textContent = "";
+  const res = await fetch("/api/run", {method:"POST", headers:{"Content-Type":"application/json"},
+                                       body: JSON.stringify(body)});
+  const j = await res.json();
+  if (!res.ok){ $("#runMsg").textContent = j.error || "run failed"; return; }
+  setRunning(true);
+  poll();
+}
+
+function pct(x){ return (x==null?0:x).toFixed(0)+"%"; }
+function bar(x, bad){
+  return el("div",{class:"bar"+(bad?" bad":"")},[el("i",{style:`width:${Math.max(0,Math.min(100,x||0))}%`})]);
+}
+
+function renderScore(d){
+  const root = $("#score"); root.innerHTML = "";
+  if (d.empty){ root.append(el("div",{class:"empty",testid:"score-empty",
+                                       textContent:"No results yet. Run a model above."})); return; }
+
+  // Headline table
+  const t = el("table",{testid:"model-table"});
+  t.append(el("thead",{},el("tr",{},[
+    el("th",{textContent:"Model"}), el("th",{textContent:"clean pass@1"}),
+    el("th",{textContent:"robust pass@1"}), el("th",{textContent:"attack success"}),
+    el("th",{textContent:"solved / n"}), el("th",{textContent:"infra excl."})])));
+  const tb = el("tbody");
+  d.models.forEach(m=>{
+    tb.append(el("tr",{testid:"model-row"},[
+      el("td",{},el("code",{textContent:m.model})),
+      el("td",{class:"num"},[document.createTextNode(pct(m.clean_pass)), bar(m.clean_pass)]),
+      el("td",{class:"num"},[document.createTextNode(pct(m.robust_pass)), bar(m.robust_pass)]),
+      el("td",{class:"num"},[document.createTextNode(pct(m.asr)), bar(m.asr,true)]),
+      el("td",{class:"num",textContent:`${m.solved} / ${m.n}`}),
+      el("td",{class:"num",textContent:String(m.errors)})]));
+  });
+  t.append(tb); root.append(t);
+
+  // Failure classes
+  if (d.failure_classes && d.models.length){
+    root.append(el("h3",{textContent:"Failure classes",style:"margin:22px 0 8px;font-size:14px"}));
+    const ft = el("table",{testid:"failure-table"});
+    const head = el("tr",{},[el("th",{textContent:"perturbation"})]);
+    d.models.forEach(m=>head.append(el("th",{},el("code",{textContent:m.model}))));
+    ft.append(el("thead",{},head));
+    const fb = el("tbody");
+    d.failure_classes.forEach(fc=>{
+      const tr = el("tr",{},[el("td",{textContent:fc.atom})]);
+      d.models.forEach(m=>{
+        const c = fc.counts[m.model]||0;
+        tr.append(el("td",{class:"num",textContent:c?String(c):"\u2013"}));
+      });
+      fb.append(tr);
+    });
+    ft.append(fb); root.append(ft);
+  }
+
+  // Transfer matrix
+  const tm = d.transfer;
+  if (tm && tm.models.length>=2){
+    root.append(el("h3",{textContent:"Attack transfer (source \u2192 target)",style:"margin:22px 0 8px;font-size:14px"}));
+    const xt = el("table",{testid:"transfer-table"});
+    const h = el("tr",{},[el("th",{textContent:"source \\ target"})]);
+    tm.models.forEach(m=>h.append(el("th",{},el("code",{textContent:m}))));
+    xt.append(el("thead",{},h));
+    const xb = el("tbody");
+    tm.models.forEach(s=>{
+      const tr = el("tr",{},[el("td",{},el("code",{textContent:s}))]);
+      tm.models.forEach(tg=>{
+        const cell = tm.matrix[s][tg];
+        let txt = "\u2013";
+        if (cell && cell.pairs) txt = `${cell.rate}% (${cell.hits}/${cell.pairs})`;
+        else if (cell && cell.pairs===0) txt = "n/a";
+        tr.append(el("td",{class:"num",textContent:txt}));
+      });
+      xb.append(tr);
+    });
+    xt.append(xb); root.append(xt);
+  }
+
+  // Per-problem grid
+  if (d.per_task && d.per_task.length && d.models.length){
+    root.append(el("h3",{textContent:"Per-problem grid",style:"margin:22px 0 8px;font-size:14px"}));
+    const wrap = el("div",{testid:"task-grid"});
+    d.models.forEach(m=>{
+      const line = el("div",{style:"margin:6px 0"});
+      line.append(el("span",{class:"muted mono",style:"display:inline-block;min-width:230px",
+                             textContent:m.model}));
+      d.per_task.forEach(pt=>{
+        const info = pt.models[m.model];
+        let cls = "taskcell miss", title = `${pt.title}: not run`;
+        if (info){
+          if (!info.clean){ cls="taskcell"; title=`${pt.title}: failed clean`; }
+          else if (info.broken_by.length){ cls="taskcell broke";
+            title=`${pt.title}: broken by ${info.broken_by.join(", ")}`; }
+          else { cls="taskcell ok"; title=`${pt.title}: robust`; }
+        }
+        line.append(el("span",{class:cls,title}));
+      });
+      wrap.append(line);
+    });
+    wrap.append(el("div",{class:"legend"},[
+      el("span",{html:'<span class="sw" style="background:var(--good)"></span>robust'}),
+      el("span",{html:'<span class="sw" style="background:var(--bad)"></span>broken'}),
+      el("span",{html:'<span class="sw" style="background:var(--panel2)"></span>failed clean'}),
+      el("span",{html:'<span class="sw" style="background:#333a47"></span>not run'}),
+    ]));
+    root.append(wrap);
+  }
+}
+
+async function loadResults(){
+  const d = await (await fetch("/api/results")).json();
+  renderScore(d);
+}
+
+$("#runBtn").addEventListener("click", run);
+$("#refresh").addEventListener("click", loadResults);
+loadConfig().then(loadResults);
+</script>
+</body>
+</html>

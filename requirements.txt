@@ -1,0 +1,4 @@
+# The core harness (grading, perturbations, runner, report, dashboard) is pure
+# Python standard library. These are only needed to evaluate *real* models:
+anthropic>=0.39
+openai>=1.40

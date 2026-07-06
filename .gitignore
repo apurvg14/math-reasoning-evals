@@ -1,0 +1,12 @@
+# secrets & local state
+.env
+results/
+data/math/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
