@@ -48,7 +48,10 @@ def base_url(tmp_path_factory):
 
     port = _free_port()
     results_dir = tmp_path_factory.mktemp("results")
-    env = dict(os.environ, MATHROBUST_RESULTS_DIR=str(results_dir))
+    env = dict(os.environ, MATHROBUST_RESULTS_DIR=str(results_dir),
+               MATHROBUST_SKIP_DOTENV="1")
+    env.pop("ANTHROPIC_API_KEY", None)
+    env.pop("OPENAI_API_KEY", None)
     proc = subprocess.Popen(
         [sys.executable, "-m", "mathrobust", "dashboard",
          "--host", "127.0.0.1", "--port", str(port), "--no-open"],

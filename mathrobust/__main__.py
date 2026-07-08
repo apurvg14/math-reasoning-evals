@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 from . import data, report, runner
@@ -16,10 +17,11 @@ from . import data, report, runner
 
 def _load_env():
     """Load KEY=VALUE lines from a local .env (no dependency on python-dotenv)."""
+    if os.environ.get("MATHROBUST_SKIP_DOTENV"):
+        return
     for envp in (Path.cwd() / ".env", Path(__file__).resolve().parent.parent / ".env"):
         if not envp.exists():
             continue
-        import os
         for line in envp.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:

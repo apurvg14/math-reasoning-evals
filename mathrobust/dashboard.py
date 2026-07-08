@@ -162,6 +162,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
+    from .__main__ import _load_env
+    _load_env()  # so real-model runs launched from the UI can see API keys
     OUT.mkdir(parents=True, exist_ok=True)
     httpd = ThreadingHTTPServer((host, port), Handler)
     display_host = "localhost" if host in ("0.0.0.0", "::") else host

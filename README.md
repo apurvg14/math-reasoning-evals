@@ -75,6 +75,16 @@ python -m mathrobust run --model claude-haiku-4-5-20251001 --dataset gsm8k --lim
 
 Keys are read from `.env` (gitignored) and never printed.
 
+Example real-model snapshot on the bundled `gsm8k` slice (`--limit 15`):
+
+| Model | clean pass@1 | robust pass@1 | attack success rate | solved clean |
+|---|---:|---:|---:|---:|
+| `claude-haiku-4-5-20251001` | 100% | 87% | 13% | 15/15 |
+| `reference` | 100% | 100% | 0% | 15/15 |
+
+Haiku solved every clean problem in this small slice, but answer-preserving
+perturbations exposed flips under `name_swap`, `noop`, and `reformat`.
+
 ---
 
 ## Datasets
@@ -120,6 +130,9 @@ accuracy, failure classes, transfer matrix, per-problem grid).
 ```bash
 python -m mathrobust dashboard          # -> http://127.0.0.1:8765
 ```
+
+The dashboard loads `.env` too, so real-model runs from the UI use the same keys
+as the CLI.
 
 ### In Docker
 
